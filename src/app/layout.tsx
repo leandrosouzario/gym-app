@@ -1,10 +1,53 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
+import { PWA_APPLE_TOUCH_ICON } from '@/lib/pwa-icons'
 import './globals.css'
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
+  process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+  'https://gym.leandrosouza.info'
+
 export const metadata: Metadata = {
-  title: 'Gym App — Gerenciamento de Treinos',
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: 'Gym App — Gerenciamento de Treinos',
+    template: '%s · Gym App',
+  },
   description:
     'Aplicação para gerenciamento de fichas de treino, registro de sessões e evolução de carga.',
+  applicationName: 'Gym App',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Gym',
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'pt_BR',
+    url: siteUrl,
+    siteName: 'Gym App',
+    title: 'Gym App — Gerenciamento de Treinos',
+    description:
+      'Aplicação para gerenciamento de fichas de treino, registro de sessões e evolução de carga.',
+  },
+  icons: {
+    icon: [{ url: '/icons/icon.svg', type: 'image/svg+xml' }],
+    apple: [{ url: PWA_APPLE_TOUCH_ICON, sizes: '180x180', type: 'image/png' }],
+  },
+}
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#0f172a' },
+  ],
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({
@@ -14,6 +57,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
+      <head>
+        <link
+          rel="apple-touch-icon"
+          href={PWA_APPLE_TOUCH_ICON}
+          sizes="180x180"
+        />
+      </head>
       <body className="bg-slate-950 text-slate-100 antialiased">{children}</body>
     </html>
   )

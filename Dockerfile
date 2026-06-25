@@ -18,8 +18,10 @@ RUN npm ci
 
 COPY . .
 
+RUN npm run icons
+
 RUN npm run build
 
-EXPOSE 3000
+EXPOSE 3020
 
 CMD ["npm", "start"]
