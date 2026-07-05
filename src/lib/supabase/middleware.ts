@@ -48,10 +48,14 @@ export async function updateSession(request: NextRequest) {
 
   if (!user && isProtectedPath(request.nextUrl.pathname)) {
     const loginUrl = process.env.NEXT_PUBLIC_AUTH_LOGIN_URL
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ?? ''
 
     if (loginUrl) {
       const redirectUrl = new URL(loginUrl)
-      redirectUrl.searchParams.set('next', request.nextUrl.pathname)
+      const returnTo = siteUrl
+        ? new URL(request.nextUrl.pathname + request.nextUrl.search, siteUrl).toString()
+        : request.nextUrl.pathname
+      redirectUrl.searchParams.set('next', returnTo)
       return NextResponse.redirect(redirectUrl)
     }
   }
