@@ -230,11 +230,13 @@ export function SessionClient({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <form action={cancelSession.bind(null, session.id)}>
+            <form
+              action={cancelSession.bind(null, session.id)}
+              onSubmit={(e) => { if (!confirm('Cancelar o treino?')) e.preventDefault() }}
+            >
               <button
                 type="submit"
                 className="rounded-lg border border-gray-300 dark:border-slate-700 px-3 py-1.5 text-sm text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
-                onClick={(e) => { if (!confirm('Cancelar o treino?')) e.preventDefault() }}
               >
                 Cancelar
               </button>

@@ -61,8 +61,8 @@ export async function startSession(planId: string) {
           session_exercise_id: se.id,
           set_number: i + 1,
           set_type: 'normal' as const,
-          weight_value: null,
-          reps: null,
+          weight_value: planEx?.target_weight ?? null,
+          reps: planEx?.reps ?? null,
           completed_at: null,
         }))
       })
@@ -223,4 +223,20 @@ export async function checkAndUpdatePr(
   }
 
   return { isNewPr: isWeightPr || isVolumePr, isWeightPr, isVolumePr }
+}
+
+export async function deleteSession(sessionId: string): Promise<void> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  await supabase
+    .from('gym_workout_sessions')
+    .delete()
+    .eq('id', sessionId)
+    .eq('user_id', user.id)
+
+  revalidatePath('/historico')
+  revalidatePath('/dashboard')
+  redirect('/historico')
 }
