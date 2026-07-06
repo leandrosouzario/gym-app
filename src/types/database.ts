@@ -22,7 +22,7 @@ export type GymWorkoutExercise = {
   target_weight: number | null
   weight_type: WeightType
   weight_per_side: boolean
-  rest_seconds: number | null
+  rest_seconds?: number | null
   notes: string | null
   display_order: number
 }
