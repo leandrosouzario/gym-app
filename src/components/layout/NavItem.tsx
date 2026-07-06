@@ -21,8 +21,8 @@ export function NavItemLink({ item, onNavigate }: NavItemLinkProps) {
       onClick={onNavigate}
       className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
         isActive
-          ? 'bg-emerald-500/15 text-emerald-300'
-          : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+          ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+          : 'text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-white'
       }`}
     >
       <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />

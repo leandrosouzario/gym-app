@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { cookies } from 'next/headers'
 import { PWA_APPLE_TOUCH_ICON } from '@/lib/pwa-icons'
 import './globals.css'
 
@@ -21,9 +22,7 @@ export const metadata: Metadata = {
     statusBarStyle: 'default',
     title: 'Gym',
   },
-  formatDetection: {
-    telephone: false,
-  },
+  formatDetection: { telephone: false },
   openGraph: {
     type: 'website',
     locale: 'pt_BR',
@@ -50,21 +49,20 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
+  const cookieStore = await cookies()
+  const theme = cookieStore.get('gym-theme')?.value === 'dark' ? 'dark' : ''
+
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" className={theme}>
       <head>
-        <link
-          rel="apple-touch-icon"
-          href={PWA_APPLE_TOUCH_ICON}
-          sizes="180x180"
-        />
+        <link rel="apple-touch-icon" href={PWA_APPLE_TOUCH_ICON} sizes="180x180" />
       </head>
-      <body className="bg-slate-950 text-slate-100 antialiased">{children}</body>
+      <body className="bg-gray-50 dark:bg-slate-950 text-gray-900 dark:text-slate-100 antialiased">
+        {children}
+      </body>
     </html>
   )
 }

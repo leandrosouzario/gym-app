@@ -1,0 +1,14 @@
+---
+description: Convenções do gym-app — gerenciamento de treinos Next.js + TypeScript
+alwaysApply: true
+---
+
+# Gym App
+
+- TypeScript obrigatório em todos os arquivos. Sem `.js`/`.jsx` fora de config.
+- Sem autenticação própria: login/cadastro/reset pertencem ao provedor central (`NEXT_PUBLIC_AUTH_LOGIN_URL`).
+- Redirect de auth: sempre usar URL **absoluta** no parâmetro `next` (ex.: `https://gym.leandrosouza.info/dashboard`).
+- Tabelas Supabase: prefixo `gym_`. Não criar tabelas `profiles` ou de outras apps.
+- Nova rota protegida → registrar em `PROTECTED_PREFIXES` em `src/lib/supabase/middleware.ts`.
+- Porta local: **3020**.
+- Imports com alias `@/`; Server Components por padrão.

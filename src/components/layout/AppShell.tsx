@@ -8,14 +8,15 @@ import { AppSidebar } from './AppSidebar'
 type AppShellProps = {
   children: React.ReactNode
   userEmail?: string | null
+  weeklyGoal?: number
 }
 
-export function AppShell({ children, userEmail }: AppShellProps) {
+export function AppShell({ children, userEmail, weeklyGoal = 3 }: AppShellProps) {
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
-    <div className="flex min-h-screen bg-slate-950">
+    <div className="flex min-h-screen bg-gray-50 dark:bg-slate-950">
       <AppSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex min-w-0 flex-1 flex-col">

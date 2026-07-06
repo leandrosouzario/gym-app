@@ -7,6 +7,7 @@ const PROTECTED_PREFIXES = [
   '/treinos',
   '/historico',
   '/evolucao',
+  '/sessao',
 ]
 
 function isProtectedPath(pathname: string) {
