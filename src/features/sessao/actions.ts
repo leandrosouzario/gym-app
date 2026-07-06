@@ -130,7 +130,7 @@ export async function addSet(sessionExerciseId: string) {
       reps: last?.reps ?? null,
       completed_at: null,
     })
-    .select('id, set_number, weight_value, reps, completed_at, set_type')
+    .select('id, session_exercise_id, set_number, set_type, weight_value, reps, completed_at, notes')
     .single()
 
   if (error) return { error: error.message }
