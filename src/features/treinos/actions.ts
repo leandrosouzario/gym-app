@@ -9,15 +9,15 @@ import type { GymWorkoutExerciseInsert, GymWorkoutExerciseUpdate, WeightType } f
 // Plans
 // ---------------------------------------------------------------------------
 
-export async function createPlan(formData: FormData) {
+export async function createPlan(formData: FormData): Promise<void> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Não autenticado' }
+  if (!user) return
 
   const name = (formData.get('name') as string)?.trim()
   const description = (formData.get('description') as string)?.trim() || null
 
-  if (!name) return { error: 'Nome obrigatório' }
+  if (!name) return
 
   const { data, error } = await supabase
     .from('gym_workout_plans')
@@ -25,7 +25,7 @@ export async function createPlan(formData: FormData) {
     .select('id')
     .single()
 
-  if (error) return { error: error.message }
+  if (error) return
 
   revalidatePath('/treinos')
   redirect(`/treinos/${data.id}`)
