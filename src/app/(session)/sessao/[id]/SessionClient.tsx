@@ -358,7 +358,7 @@ export function SessionClient({
                     })}
                   </div>
 
-                  {/* Add/remove set */}
+                  {/* Add/remove/mark-all set buttons */}
                   <div className="mt-3 flex gap-2">
                     <button
                       type="button"
@@ -368,6 +368,20 @@ export function SessionClient({
                       <Plus className="h-3.5 w-3.5" />
                       Série
                     </button>
+                    {es.sets.some((s) => !s.completed_at) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          es.sets
+                            .filter((s) => !s.completed_at)
+                            .forEach((s) => handleComplete(es, s))
+                        }}
+                        className="flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-emerald-400 dark:border-emerald-700 px-3 py-2 text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                        Todos
+                      </button>
+                    )}
                     {es.sets.length > 1 && !es.sets.at(-1)?.completed_at && (
                       <button
                         type="button"

@@ -1,8 +1,8 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Trash2 } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { getSessionDetail } from '@/features/historico/queries'
-import { deleteSession } from '@/features/sessao/actions'
+import { DeleteSessionButton } from './DeleteSessionButton'
 import type { GymSessionExercise, GymSessionSet } from '@/types/database'
 
 export const metadata = { title: 'Detalhe da Sessão' }
@@ -96,21 +96,7 @@ export default async function SessionDetailPage({
             </p>
           </div>
         </div>
-        <form
-          action={deleteSession.bind(null, session.id)}
-          onSubmit={(e) => {
-            if (!confirm('Excluir esta sessão? Esta ação não pode ser desfeita.'))
-              e.preventDefault()
-          }}
-        >
-          <button
-            type="submit"
-            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
-          >
-            <Trash2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Excluir</span>
-          </button>
-        </form>
+        <DeleteSessionButton sessionId={session.id} />
       </div>
 
       {/* Summary stats */}
