@@ -88,10 +88,12 @@ export default async function SessionDetailPage({
               {session.plan_name_snapshot ?? 'Treino livre'}
             </h2>
             <p className="text-sm text-gray-500 dark:text-slate-400">
-              {new Date(session.performed_at).toLocaleDateString('pt-BR', {
+              {new Date(session.performed_at).toLocaleString('pt-BR', {
                 weekday: 'long',
                 day: 'numeric',
                 month: 'long',
+                hour: '2-digit',
+                minute: '2-digit',
               })}
             </p>
           </div>

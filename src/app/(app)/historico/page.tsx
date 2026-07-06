@@ -5,10 +5,12 @@ import { getSessions } from '@/features/historico/queries'
 export const metadata = { title: 'Histórico' }
 
 function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('pt-BR', {
+  return new Date(dateStr).toLocaleString('pt-BR', {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
   })
 }
 
