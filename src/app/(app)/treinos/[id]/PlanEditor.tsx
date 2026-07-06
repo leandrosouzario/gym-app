@@ -193,7 +193,7 @@ export function PlanEditor({ plan, exercises }: Props) {
 
   function handleDeletePlan() {
     if (!confirm(`Excluir a ficha "${plan.name}"? Esta ação não pode ser desfeita.`)) return
-    startTransition(() => deletePlan(plan.id))
+    startTransition(async () => { await deletePlan(plan.id) })
   }
 
   return (
