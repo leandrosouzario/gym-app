@@ -168,18 +168,23 @@ export async function DashboardStats() {
       )}
 
       {/* Evolução link */}
-      <div className="rounded-xl border border-dashed border-gray-300 dark:border-slate-700 p-5 text-center">
-        <Dumbbell className="mx-auto h-8 w-8 text-gray-300 dark:text-slate-600 mb-2" />
-        <p className="text-sm text-gray-500 dark:text-slate-400 mb-3">
-          Gráficos de evolução e análise de carga em breve.
-        </p>
-        <Link
-          href="/evolucao"
-          className="text-sm text-emerald-600 dark:text-emerald-400 hover:underline"
-        >
-          Ver evolução →
-        </Link>
-      </div>
+      <Link
+        href="/evolucao"
+        className="block rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Dumbbell className="h-5 w-5 text-emerald-500" />
+            <div>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">Evolução</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400">
+                Gráficos, consistência e recordes
+              </p>
+            </div>
+          </div>
+          <span className="text-sm text-emerald-600 dark:text-emerald-400">Ver →</span>
+        </div>
+      </Link>
     </div>
   )
 }
