@@ -4,46 +4,70 @@ Aplicação web para gerenciamento de fichas de musculação em `https://gym.lea
 
 ## Escopo
 
-- CRUD de fichas de treino (`/treinos`)
-- Registro de sessões de treino (`/historico`)
-- Acompanhamento de evolução e PRs de carga (`/evolucao`)
-- Dashboard com resumo de estatísticas (`/dashboard`)
-- Layout shell (sidebar + header) em `src/components/layout/`
+- Landing page pública com apresentação do app (`/`)
+- CRUD de fichas de treino com exercícios (`/treinos`, `/treinos/nova`, `/treinos/[id]`)
+- Sessão de treino ativa com logging por série, prefill e PR detection (`/sessao/[id]`)
+- Histórico de sessões concluídas (`/historico`, `/historico/[id]`)
+- Dashboard com stats reais: treinos da semana, meta, último treino, PRs (`/dashboard`)
+- Evolução: gráficos de progressão por exercício, heatmap de consistência, tabela de PRs (`/evolucao`)
+- Tema claro/escuro persistido por usuário
 
 **Fora de escopo:** autenticação própria (login/cadastro/reset), tabela `profiles`, lógica de outras apps.
 
 ## Stack
 
-Next.js 16 · React 18 · Tailwind · **TypeScript** · Supabase SSR · Lucide React · porta **3020** · Docker `3020:3020`
+Next.js 16 · React 18 · Tailwind · **TypeScript** · Supabase SSR · Lucide React · **Recharts** · porta **3020** · Docker `3020:3020`
 
 ## Estrutura
 
 ```
 src/
   app/
-    (app)/          # rotas autenticadas (dashboard, treinos, historico, evolucao)
-    layout.tsx      # root layout com metadata PWA
-    manifest.ts     # Web App Manifest
-    page.tsx        # redirect → /dashboard
+    page.tsx                  # landing page pública (redireciona logados para /dashboard)
+    layout.tsx                # root layout com metadata PWA + leitura de cookie de tema
+    (app)/                    # rotas autenticadas
+      layout.tsx              # ThemeProvider + sessão
+      dashboard/page.tsx
+      treinos/page.tsx
+      treinos/nova/page.tsx
+      treinos/[id]/page.tsx
+      treinos/[id]/PlanEditor.tsx   # Client Component: edição de exercícios
+      historico/page.tsx
+      historico/[id]/page.tsx
+      historico/[id]/DeleteSessionButton.tsx  # Client Component
+      evolucao/page.tsx
+      evolucao/EvolucaoClient.tsx   # Client Component: tabs + estado dos 3 slots
+    (session)/                # layout de sessão ativa
+      layout.tsx
+      sessao/[id]/page.tsx
+      sessao/[id]/SessionClient.tsx # Client Component: logging por série, timers, PR toasts
   components/
-    layout/         # AppShell, AppHeader, AppSidebar, NavItem
-    ui/             # EmptyState, StatCard
+    layout/                   # AppShell, AppHeader, AppSidebar, NavItem
+    charts/                   # ExerciseProgressChart, ConsistencyBarChart, WeeklyHeatmap, ExercisePicker
+    theme/                    # ThemeProvider
+    ui/                       # EmptyState, StatCard
   features/
-    dashboard/      # DashboardStats (mock → dados reais futuros)
+    dashboard/                # queries.ts, components/DashboardStats.tsx
+    treinos/                  # queries.ts, actions.ts
+    sessao/                   # queries.ts, actions.ts
+    historico/                # queries.ts
+    evolucao/                 # queries.ts, actions.ts
+    settings/                 # actions.ts (updateTheme)
   lib/
-    navigation.ts   # mainNavigation, pageTitles
-    pwa-icons.ts    # PWA_ICON_VERSION, PWA_MANIFEST_ICONS
-    supabase/       # client.ts, server.ts, middleware.ts, cookie-options.ts
+    navigation.ts             # mainNavigation, pageTitles
+    theme.ts                  # applyTheme, persistTheme
+    pwa-icons.ts
+    supabase/                 # client.ts, server.ts, middleware.ts, cookie-options.ts
   types/
-    database.ts     # tipos das tabelas gym_* (GymWorkoutPlan, GymWorkoutExercise, etc.)
+    database.ts               # GymWorkoutPlan, GymWorkoutExercise, GymSession*, GymExercisePr, etc.
     index.ts
-  middleware.ts     # updateSession — protege /dashboard /treinos /historico /evolucao
+  middleware.ts               # protege /dashboard /treinos /historico /evolucao /sessao
 scripts/
-  generate-icons.mjs  # gera PNGs a partir de public/icons/icon.svg
+  generate-icons.mjs
 supabase/
-  migrations/       # SQLs das tabelas gym_* (criar se ainda não existir)
+  migrations/                 # SQLs das tabelas gym_* (executar em ordem)
 public/
-  icons/            # icon.svg + PNGs gerados no build Docker
+  icons/                      # icon.svg + PNGs gerados no build Docker
 ```
 
 ## Modelo de dados (Supabase)
@@ -53,31 +77,56 @@ Tabelas no schema `public`, todas com prefixo `gym_`:
 | Tabela | Descrição |
 |---|---|
 | `gym_workout_plans` | Fichas de treino do usuário |
-| `gym_workout_exercises` | Exercícios de cada ficha (com `display_order`) |
-| `gym_workout_sessions` | Sessões realizadas |
-| `gym_exercise_logs` | Registros por exercício numa sessão |
-| `gym_exercise_prs` | Recordes pessoais por exercício |
+| `gym_workout_exercises` | Exercícios de cada ficha (`weight_type`: kg/plates, `weight_per_side`) |
+| `gym_workout_sessions` | Sessões realizadas (`status`: in_progress / completed / cancelled) |
+| `gym_session_exercises` | Exercícios de cada sessão (snapshot do plano) |
+| `gym_session_sets` | Séries individuais: `weight_value`, `reps`, `completed_at` |
+| `gym_exercise_prs` | Recordes pessoais: `max_weight`, `max_volume`, `achieved_at` |
+| `gym_user_settings` | Preferências: `theme`, `weekly_goal` |
 
-Tipos TypeScript em `src/types/database.ts`. Migrations SQL devem ficar em `supabase/migrations/`.
+Tipos TypeScript em `src/types/database.ts`. Migrations SQL em `supabase/migrations/`.
+
+### Migrations (ordem obrigatória)
+
+```
+001_gym_foundation.sql    # tabelas base, RLS, triggers
+002_gym_sessions.sql      # gym_session_exercises, gym_session_sets, gym_user_settings,
+                          # coluna weight_type em gym_workout_exercises,
+                          # coluna status em gym_workout_sessions
+```
 
 ## Autenticação
 
-- **Sem login próprio.** O gym-app delega ao provedor central de auth (`NEXT_PUBLIC_AUTH_LOGIN_URL`).
-- Middleware protege rotas com: sem sessão → redirect para `AUTH_LOGIN_URL?next=<URL absoluta do gym>`.
-- Usar sempre **URL absoluta** no parâmetro `next` (ex.: `https://gym.leandrosouza.info/dashboard`), nunca path relativo.
+- **Sem login próprio.** Delega ao provedor central (`NEXT_PUBLIC_AUTH_LOGIN_URL`).
+- Middleware protege rotas: sem sessão → redirect para `AUTH_LOGIN_URL?next=<URL absoluta do gym>`.
+- Usar sempre **URL absoluta** no parâmetro `next` (ex.: `https://gym.leandrosouza.info/dashboard`).
 - Cookies de sessão no domínio `.leandrosouza.info` — compartilhados entre apps.
-- Dados do usuário: ler `auth.getUser()` via Supabase SSR. Perfil em `public.profiles` (gerenciado pelo pc-app).
+- Perfil do usuário: gerenciado pelo `auth-app` (`public.profiles`).
 
 ## Variáveis de ambiente
 
 | Variável | Obrigatória | Descrição |
 |---|---|---|
-| `NEXT_PUBLIC_SITE_URL` | Sim | URL canônica do gym (ex.: `https://gym.leandrosouza.info`) |
+| `NEXT_PUBLIC_SITE_URL` | Sim | `https://gym.leandrosouza.info` |
 | `NEXT_PUBLIC_SUPABASE_URL` | Sim | URL do Supabase self-hosted |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Sim | Chave anon do Supabase |
-| `NEXT_PUBLIC_AUTH_LOGIN_URL` | Sim | URL de login do provedor central (ex.: `https://hub.leandrosouza.info/login`) |
+| `NEXT_PUBLIC_AUTH_LOGIN_URL` | Sim | `https://auth.leandrosouza.info/login` |
+| `NEXT_PUBLIC_AUTH_PROFILE_URL` | Sim | `https://auth.leandrosouza.info/perfil` |
 
-`NEXT_PUBLIC_APP_URL` no `.env` atual é duplicata de `SITE_URL` — ignorar, usar `SITE_URL`.
+## Funcionalidades principais
+
+### Sessão de treino (`/sessao/[id]`)
+- Pré-preenche séries com valores do plano (peso-alvo e reps)
+- Logging por série: marcar cada série com peso e reps efetivos
+- Detecção de PR: ao completar uma série, checa e registra PR automaticamente
+- Botão "Marcar todos": completa todas as séries pendentes de um exercício de uma vez
+- Cronômetro de sessão
+- Cancelar ou finalizar sessão
+
+### Evolução (`/evolucao`)
+- **Aba Exercícios:** 3 gráficos de linha (últimos exercícios treinados), pontos dourados em PRs, botão "Trocar" com combobox pesquisável
+- **Aba Consistência:** heatmap de 16 semanas + gráfico de barras (12 semanas) + streaks
+- **Aba Recordes:** tabela pesquisável de todos os PRs com data
 
 ## Convenções de código
 
@@ -87,6 +136,7 @@ Tipos TypeScript em `src/types/database.ts`. Migrations SQL devem ficar em `supa
 - UI em pt-BR; paleta slate + emerald.
 - Novos tipos de dado → `src/types/database.ts`.
 - Nova rota autenticada → adicionar em `PROTECTED_PREFIXES` no `src/lib/supabase/middleware.ts`.
+- Gráficos → usar Recharts com padrão já estabelecido em `src/components/charts/`.
 
 ## Deploy
 
@@ -102,7 +152,7 @@ Cloudflare Tunnel: `gym.leandrosouza.info` → host `:3020`
 | App | URL | Relação |
 |---|---|---|
 | Hub | `https://hub.leandrosouza.info` | Catálogo público; lista o gym-app |
-| PC / Auth | `https://pc.leandrosouza.info` | Provedor de auth atual; alvo do `AUTH_LOGIN_URL` |
+| Auth | `https://auth.leandrosouza.info` | Provedor de auth; perfil do usuário |
 | Balcão | `https://balcao.leandrosouza.info` | App irmã, mesmo Supabase |
 | Supabase | `https://supabase.leandrosouza.info` | Backend compartilhado |
 
