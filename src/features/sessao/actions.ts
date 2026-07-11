@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import type { WeightType } from '@/types/database'
 
 export async function startSession(planId: string) {
   const supabase = await createClient()
@@ -223,6 +224,77 @@ export async function checkAndUpdatePr(
   }
 
   return { isNewPr: isWeightPr || isVolumePr, isWeightPr, isVolumePr }
+}
+
+export async function addExerciseToSession(
+  sessionId: string,
+  exerciseName: string,
+  weightType: WeightType,
+  weightPerSide: boolean,
+  setsCount: number = 3,
+  targetWeight: number | null = null,
+  targetReps: number | null = null
+): Promise<{ exercise?: Record<string, unknown>; sets?: Record<string, unknown>[]; error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Não autenticado' }
+
+  const { data: session } = await supabase
+    .from('gym_workout_sessions')
+    .select('id, status')
+    .eq('id', sessionId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!session) return { error: 'Sessão não encontrada' }
+  if (session.status !== 'in_progress') return { error: 'Sessão não está em andamento' }
+
+  const { data: lastEx } = await supabase
+    .from('gym_session_exercises')
+    .select('display_order')
+    .eq('session_id', sessionId)
+    .order('display_order', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const displayOrder = (lastEx?.display_order ?? -1) + 1
+
+  const { data: exercise, error: exError } = await supabase
+    .from('gym_session_exercises')
+    .insert({
+      session_id: sessionId,
+      plan_exercise_id: null,
+      exercise_name: exerciseName,
+      weight_type: weightType,
+      weight_per_side: weightPerSide,
+      display_order: displayOrder,
+    })
+    .select('*')
+    .single()
+
+  if (exError || !exercise) return { error: exError?.message ?? 'Erro ao adicionar exercício' }
+
+  const { data: sets, error: setsError } = await supabase
+    .from('gym_session_sets')
+    .insert(
+      Array.from({ length: setsCount }, (_, i) => ({
+        session_exercise_id: exercise.id,
+        set_number: i + 1,
+        set_type: 'normal' as const,
+        weight_value: targetWeight,
+        reps: targetReps,
+        completed_at: null,
+      }))
+    )
+    .select('*')
+
+  if (setsError) return { error: setsError.message }
+
+  revalidatePath(`/sessao/${sessionId}`)
+  return {
+    exercise: exercise as Record<string, unknown>,
+    sets: (sets ?? []) as Record<string, unknown>[],
+  }
 }
 
 export async function deleteSession(sessionId: string): Promise<void> {

@@ -1,7 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { ChevronDown, ChevronUp, Plus, Minus, Check, X, Trophy } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
+import { ChevronDown, ChevronUp, Plus, Minus, Check, X, Trophy, Search } from 'lucide-react'
 import {
   logSet,
   uncompleteSet,
@@ -10,6 +10,7 @@ import {
   finishSession,
   cancelSession,
   checkAndUpdatePr,
+  addExerciseToSession,
 } from '@/features/sessao/actions'
 import type {
   GymWorkoutSession,
@@ -17,6 +18,7 @@ import type {
   GymSessionSet,
   WeightType,
 } from '@/types/database'
+import type { PlanExerciseSuggestion } from '@/features/treinos/queries'
 
 type PreviousSets = Record<string, { weight_value: number | null; reps: number | null }[]>
 
@@ -89,23 +91,215 @@ function NumInput({
   )
 }
 
+// ---------------------------------------------------------------------------
+// Exercise Picker Modal (2B)
+// ---------------------------------------------------------------------------
+
+function AddExercisePicker({
+  suggestions,
+  onAdd,
+  onClose,
+  isPending,
+}: {
+  suggestions: PlanExerciseSuggestion[]
+  onAdd: (name: string, weightType: WeightType, perSide: boolean, sets: number) => void
+  onClose: () => void
+  isPending: boolean
+}) {
+  const [search, setSearch] = useState('')
+  const [custom, setCustom] = useState('')
+  const [weightType, setWeightType] = useState<WeightType>('kg')
+  const [perSide, setPerSide] = useState(false)
+  const [setsCount, setSetsCount] = useState(3)
+  const [selected, setSelected] = useState<PlanExerciseSuggestion | null>(null)
+
+  const uniqueSuggestions = suggestions.filter(
+    (s, i, arr) => arr.findIndex((x) => x.exercise_name === s.exercise_name) === i
+  )
+
+  const filtered = uniqueSuggestions.filter((s) =>
+    s.exercise_name.toLowerCase().includes(search.toLowerCase())
+  )
+
+  function handleSelect(s: PlanExerciseSuggestion) {
+    setSelected(s)
+    setCustom(s.exercise_name)
+    setWeightType(s.weight_type)
+    setPerSide(s.weight_per_side)
+  }
+
+  function handleSubmit() {
+    const name = custom.trim() || selected?.exercise_name
+    if (!name) return
+    onAdd(name, weightType, perSide, setsCount)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md rounded-t-2xl sm:rounded-2xl bg-white dark:bg-slate-900 shadow-2xl flex flex-col max-h-[88vh]">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-100 dark:border-slate-800 shrink-0">
+          <h3 className="font-semibold text-gray-900 dark:text-white">Adicionar exercício</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Search */}
+        <div className="px-4 pt-3 pb-2 shrink-0">
+          <div className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 px-3 py-2">
+            <Search className="h-4 w-4 text-gray-400 shrink-0" />
+            <input
+              autoFocus
+              type="text"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setCustom(e.target.value); setSelected(null) }}
+              placeholder="Buscar ou digitar novo exercício..."
+              className="flex-1 bg-transparent text-sm text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        {/* List */}
+        <div className="flex-1 overflow-y-auto px-4 pb-2">
+          {filtered.length > 0 ? (
+            <div className="space-y-1">
+              {filtered.map((s) => (
+                <button
+                  key={s.exercise_name}
+                  type="button"
+                  onClick={() => handleSelect(s)}
+                  className={`w-full flex items-center justify-between rounded-lg px-3 py-2.5 text-left transition-colors ${
+                    selected?.exercise_name === s.exercise_name
+                      ? 'bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800'
+                      : 'hover:bg-gray-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{s.exercise_name}</p>
+                    <p className="text-xs text-gray-400 dark:text-slate-500">{s.plan_name}</p>
+                  </div>
+                  {selected?.exercise_name === s.exercise_name && (
+                    <Check className="h-4 w-4 text-emerald-500 shrink-0" />
+                  )}
+                </button>
+              ))}
+            </div>
+          ) : (
+            search && (
+              <p className="py-4 text-center text-sm text-gray-400 dark:text-slate-500">
+                Exercício não encontrado — será criado como personalizado.
+              </p>
+            )
+          )}
+        </div>
+
+        {/* Config */}
+        <div className="border-t border-gray-100 dark:border-slate-800 px-4 py-3 space-y-3 shrink-0">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-600 dark:text-slate-400">Tipo de peso</span>
+            <div className="flex rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+              {(['kg', 'plates'] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setWeightType(t)}
+                  className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                    weightType === t
+                      ? 'bg-emerald-500 text-white'
+                      : 'text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  {t === 'kg' ? 'kg' : 'Placas'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-600 dark:text-slate-400">Por lado</span>
+            <button
+              type="button"
+              onClick={() => setPerSide((v) => !v)}
+              className={`relative h-6 w-10 rounded-full transition-colors ${
+                perSide ? 'bg-emerald-500' : 'bg-gray-200 dark:bg-slate-700'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                  perSide ? 'translate-x-4' : 'translate-x-0.5'
+                }`}
+              />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-600 dark:text-slate-400">Número de séries</span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSetsCount((n) => Math.max(1, n - 1))}
+                className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800"
+              >
+                <Minus className="h-3 w-3" />
+              </button>
+              <span className="w-4 text-center text-sm font-semibold text-gray-900 dark:text-white">
+                {setsCount}
+              </span>
+              <button
+                type="button"
+                onClick={() => setSetsCount((n) => Math.min(10, n + 1))}
+                className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800"
+              >
+                <Plus className="h-3 w-3" />
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={isPending || (!custom.trim() && !selected)}
+            className="w-full rounded-xl bg-emerald-500 py-2.5 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50 transition-colors"
+          >
+            {isPending ? 'Adicionando...' : 'Adicionar ao treino'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Main session component
+// ---------------------------------------------------------------------------
+
 export function SessionClient({
   session,
   exercises,
   sets,
   previousSets,
   userId,
+  allPlanExercises,
 }: {
   session: GymWorkoutSession
   exercises: GymSessionExercise[]
   sets: GymSessionSet[]
   previousSets: PreviousSets
   userId: string
+  allPlanExercises: PlanExerciseSuggestion[]
 }) {
   const startTime = useRef(new Date(session.performed_at).getTime())
   const [elapsed, setElapsed] = useState(Date.now() - startTime.current)
   const [toasts, setToasts] = useState<ToastMsg[]>([])
   const toastId = useRef(0)
+  const [showAddExercise, setShowAddExercise] = useState(false)
+  const [addExPending, startAddExTransition] = useTransition()
 
   const initExercises = useCallback((): ExerciseState[] => {
     return exercises.map((ex, idx) => {
@@ -210,6 +404,25 @@ export function SessionClient({
         )
       )
     }
+  }
+
+  function handleAddExercise(name: string, wType: WeightType, perSide: boolean, setsCount: number) {
+    startAddExTransition(async () => {
+      const result = await addExerciseToSession(session.id, name, wType, perSide, setsCount)
+      if (result.exercise && result.sets) {
+        const ex = result.exercise as GymSessionExercise
+        const newSets = (result.sets as GymSessionSet[]).map((s) => ({
+          ...s,
+          localWeight: '',
+          localReps: '',
+        }))
+        setExerciseStates((prev) => [
+          ...prev,
+          { exercise: ex, sets: newSets, expanded: true },
+        ])
+      }
+      setShowAddExercise(false)
+    })
   }
 
   const completedSets = exerciseStates.flatMap((e) => e.sets).filter((s) => s.completed_at).length
@@ -404,6 +617,17 @@ export function SessionClient({
           </div>
         )}
 
+        {/* Add exercise button */}
+        <button
+          type="button"
+          onClick={() => setShowAddExercise(true)}
+          disabled={addExPending}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-gray-300 dark:border-slate-700 py-3 text-sm font-medium text-gray-400 dark:text-slate-500 hover:border-emerald-400 hover:text-emerald-500 dark:hover:border-emerald-700 dark:hover:text-emerald-400 disabled:opacity-50 transition-colors"
+        >
+          <Plus className="h-4 w-4" />
+          Adicionar exercício
+        </button>
+
         <div className="pb-8" />
       </main>
 
@@ -419,6 +643,16 @@ export function SessionClient({
           </div>
         ))}
       </div>
+
+      {/* Add exercise modal */}
+      {showAddExercise && (
+        <AddExercisePicker
+          suggestions={allPlanExercises}
+          onAdd={handleAddExercise}
+          onClose={() => setShowAddExercise(false)}
+          isPending={addExPending}
+        />
+      )}
     </div>
   )
 }

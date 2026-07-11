@@ -43,7 +43,6 @@ export async function getSessionDetail(sessionId: string) {
         .from('gym_session_sets')
         .select('*')
         .in('session_exercise_id', exerciseIds)
-        .not('completed_at', 'is', null)
         .order('set_number', { ascending: true })
     : { data: [] }
 
