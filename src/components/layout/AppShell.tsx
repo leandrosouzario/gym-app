@@ -4,14 +4,22 @@ import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { AppHeader } from './AppHeader'
 import { AppSidebar } from './AppSidebar'
+import { ActiveSessionBanner } from './ActiveSessionBanner'
+
+type ActiveSession = {
+  id: string
+  plan_name_snapshot: string | null
+  performed_at: string
+}
 
 type AppShellProps = {
   children: React.ReactNode
   userEmail?: string | null
   weeklyGoal?: number
+  activeSession?: ActiveSession | null
 }
 
-export function AppShell({ children, userEmail, weeklyGoal = 3 }: AppShellProps) {
+export function AppShell({ children, userEmail, weeklyGoal = 3, activeSession }: AppShellProps) {
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -25,7 +33,10 @@ export function AppShell({ children, userEmail, weeklyGoal = 3 }: AppShellProps)
           userEmail={userEmail}
           onMenuClick={() => setSidebarOpen(true)}
         />
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+        <main className="flex-1 p-4 md:p-6">
+          {activeSession && <ActiveSessionBanner session={activeSession} />}
+          {children}
+        </main>
       </div>
     </div>
   )
